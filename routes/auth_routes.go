@@ -10,10 +10,6 @@ import (
 func AuthRoutes(api *gin.RouterGroup) {
 	router := api.Group("/auth")
 
-	router.POST("/login", handlers.AuthLoginHandler)
-
-	router.Use(middlewares.JWTMiddleware())
-	{
-		router.GET("/me", handlers.AuthUserMeHandler)
-	}
+	router.POST("/login", handlers.HandlerAuthLogin)
+	router.GET("/user", middlewares.JWTMiddleware(), handlers.HandlerAuthUserMe)
 }

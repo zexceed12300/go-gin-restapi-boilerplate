@@ -1,14 +1,14 @@
 package models
 
-import "time"
-
 type User struct {
-	ID        int       `json:"id" gorm:"primaryKey,autoIncrement"`
-	Name      string    `json:"name"`
-	Username  string    `json:"username" gorm:"unique;not null" binding:"required"`
-	Password  string    `json:"password" gorm:"size:100;not null"`
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime;<-:create"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-
-	Presences *[]Presence `json:"presences" gorm:"foreignKey:UserID"`
+	ID           int    `json:"id" gorm:"primary_key;autoIncrement"`
+	Name         string `json:"name"`
+	Email        string `json:"email" binding:"required"`
+	PasswordHash string `json:"-"`
+	AccessToken  string `json:"-"`
+	RefreshToken string `json:"-"`
+	CreatedAt    int    `json:"created_at" gorm:"autoCreateTime;<-:create"`
+	UpdatedAt    int    `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedBy    *int   `json:"created_by" gorm:"<-:create"`
+	UpdatedBy    *int   `json:"updated_by"`
 }

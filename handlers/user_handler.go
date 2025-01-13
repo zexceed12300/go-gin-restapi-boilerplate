@@ -10,20 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UserListHandler(c *gin.Context) {
+func HandlerUserList(c *gin.Context) {
 	query := helpers.ListQueryParams{
 		Limit: 20,
 		Skip:  0,
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
 			Message: "Invalid query params",
 		})
 		return
 	}
 
 	users := []models.User{}
+	var recordsTotal int64
 
 	db := initializers.DB.Limit(query.Limit)
 
@@ -37,23 +38,41 @@ func UserListHandler(c *gin.Context) {
 		db.Offset(query.Skip)
 	}
 
-	db.Preload("Presences")
+	if err := db.Find(&users).Error; err != nil {
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Failed to retrive list of users",
+		})
+		return
+	}
 
-	db.Find(&users)
+	if err := db.Offset(-1).Limit(-1).Count(&recordsTotal).Error; err != nil {
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Failed to retrive total records",
+		})
+		return
+	}
+
+	data := struct {
+		Users        []models.User `json:"users"`
+		RecordsTotal int64         `json:"recordsTotal"`
+	}{
+		Users:        users,
+		RecordsTotal: recordsTotal,
+	}
 
 	res := helpers.Response(http.StatusOK, helpers.ResponseParams{
 		Message: "Successfully retrived list of blud",
-		Data:    users,
+		Data:    data,
 	})
 
 	c.JSON(http.StatusOK, res)
 }
 
-func UserGetHandler(c *gin.Context) {
+func HandlerUserGet(c *gin.Context) {
 	uri := helpers.UriIDParam{}
 
 	if err := c.ShouldBindUri(&uri); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
 			Message: "Invalid id",
 		})
 		return
@@ -66,8 +85,8 @@ func UserGetHandler(c *gin.Context) {
 	db.Preload("Presences")
 
 	if err := db.First(&user).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.NotFoundError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.NotFoundError{
+			Message: "User not found",
 		})
 		return
 	}
@@ -80,30 +99,30 @@ func UserGetHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func UserCreateHandler(c *gin.Context) {
+func HandlerUserCreate(c *gin.Context) {
 	user := models.User{}
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
+			Message: "Invalid request body",
 		})
 		return
 	}
 
-	hashed, err := helpers.HashPassword(user.Password)
+	hashed, err := helpers.HashPassword(user.PasswordHash)
 
 	if err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.InternalServerError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Failed to hash password",
 		})
 		return
 	}
 
-	user.Password = hashed
+	user.PasswordHash = hashed
 
 	if err := initializers.DB.Create(&user).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.InternalServerError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Failed to create user",
 		})
 		return
 	}
@@ -116,11 +135,11 @@ func UserCreateHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, res)
 }
 
-func UserUpdateHandler(c *gin.Context) {
+func HandlerUserUpdate(c *gin.Context) {
 	uri := helpers.UriIDParam{}
 
 	if err := c.ShouldBindUri(&uri); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
 			Message: "Invalid id",
 		})
 		return
@@ -129,22 +148,22 @@ func UserUpdateHandler(c *gin.Context) {
 	user := models.User{ID: uri.ID}
 
 	if err := initializers.DB.First(&user).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.NotFoundError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.NotFoundError{
+			Message: "User not found",
 		})
 		return
 	}
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
+			Message: "Invalid request body",
 		})
 		return
 	}
 
 	if err := initializers.DB.Save(&user).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.InternalServerError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Failed to update user",
 		})
 		return
 	}
@@ -157,11 +176,11 @@ func UserUpdateHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func UserDeleteHandler(c *gin.Context) {
+func HandlerUserDelete(c *gin.Context) {
 	uri := helpers.UriIDParam{}
 
 	if err := c.ShouldBindUri(&uri); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
 			Message: "Invalid id",
 		})
 		return
@@ -170,15 +189,15 @@ func UserDeleteHandler(c *gin.Context) {
 	user := models.User{ID: uri.ID}
 
 	if err := initializers.DB.First(&user).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.NotFoundError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.NotFoundError{
+			Message: "User not found",
 		})
 		return
 	}
 
 	if err := initializers.DB.Delete(&user).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.InternalServerError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Failed to delete user",
 		})
 		return
 	}

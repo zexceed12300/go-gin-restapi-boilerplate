@@ -137,8 +137,8 @@ func FileGet(c *gin.Context) {
 	uri := models.FileFilenameParam{}
 
 	if err := c.ShouldBindUri(&uri); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
+			Message: "Error getting file",
 		})
 		return
 	}
@@ -146,8 +146,8 @@ func FileGet(c *gin.Context) {
 	file := models.File{}
 
 	if err := initializers.DB.First(&file, models.File{Name: uri.Filename}).Error; err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
-			Message: err.Error(),
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
+			Message: "Error getting file",
 		})
 	}
 

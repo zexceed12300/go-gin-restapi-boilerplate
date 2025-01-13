@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"go-gin-restapi-boilerplate/initializers"
 	"go-gin-restapi-boilerplate/models"
 	"go-gin-restapi-boilerplate/routes"
@@ -10,11 +11,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//go:embed .env
+var env string
+
 func init() {
-	initializers.LoadEnv()
+	initializers.EmbedEnv(env)
 	initializers.NewDB()
 
-	err := initializers.DB.AutoMigrate(&models.User{}, &models.Presence{}, &models.File{})
+	err := initializers.DB.AutoMigrate(&models.User{}, &models.File{})
 	if err != nil {
 		panic("Failed to migrate database")
 	}
@@ -39,7 +43,6 @@ func main() {
 
 	routes.AuthRoutes(api)
 	routes.UserRoutes(api)
-	routes.PresenceRoutes(api)
 	routes.FileRoutes(api)
 
 	router.Run()

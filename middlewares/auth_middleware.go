@@ -23,7 +23,7 @@ func JWTMiddleware() gin.HandlerFunc {
 		if len(parts) == 2 && parts[0] == "Bearer" {
 			tokenStr = parts[1]
 		} else {
-			errorhandler.ErrorHandler(c, &errorhandler.UnauthorizedError{
+			errorhandler.ErrorHandler(c, nil, &errorhandler.UnauthorizedError{
 				Message: "Invalid Access token format",
 			})
 			c.Abort()
@@ -31,7 +31,7 @@ func JWTMiddleware() gin.HandlerFunc {
 		}
 
 		if tokenStr == "" {
-			errorhandler.ErrorHandler(c, &errorhandler.UnauthorizedError{
+			errorhandler.ErrorHandler(c, nil, &errorhandler.UnauthorizedError{
 				Message: "Access token not specified",
 			})
 			c.Abort()
@@ -41,7 +41,7 @@ func JWTMiddleware() gin.HandlerFunc {
 		userID, err := helpers.ValidateToken(tokenStr, []byte(secretKey))
 
 		if err != nil {
-			errorhandler.ErrorHandler(c, &errorhandler.UnauthorizedError{
+			errorhandler.ErrorHandler(c, &err, &errorhandler.UnauthorizedError{
 				Message: err.Error(),
 			})
 			c.Abort()

@@ -5,13 +5,14 @@ import (
 	"go-gin-restapi-boilerplate/helpers"
 	"go-gin-restapi-boilerplate/initializers"
 	"go-gin-restapi-boilerplate/models"
+	"go-gin-restapi-boilerplate/models/validation"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-func AuthUserMeHandler(c *gin.Context) {
+func HandlerAuthUserMe(c *gin.Context) {
 	userID := c.GetInt("userID")
 
 	var user models.User
@@ -30,41 +31,69 @@ func AuthUserMeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func AuthLoginHandler(c *gin.Context) {
-	var req models.LoginRequest
+func HandlerAuthLogin(c *gin.Context) {
+	var req validation.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorhandler.ErrorHandler(c, &errorhandler.BadRequestError{
+		errorhandler.ErrorHandler(c, &err, &errorhandler.BadRequestError{
 			Message: err.Error(),
 		})
 		return
 	}
 
-	var user models.User
-	initializers.DB.Where("username = ?", req.Username).First(&user)
+	var user *models.User
 
-	if !helpers.CheckPasswordHash(req.Password, user.Password) {
-		errorhandler.ErrorHandler(c, &errorhandler.UnauthorizedError{
+	if err := initializers.DB.First(&user, models.User{
+		Email: req.Email,
+	}); err.Error != nil {
+		errorhandler.ErrorHandler(c, &err.Error, &errorhandler.UnauthorizedError{
 			Message: "Email or password invalid",
 		})
 		return
 	}
 
-	access_token, err := helpers.GenerateAccessToken(&user)
-	if err != nil {
-		log.Printf("could not generate access_token %s", err.Error())
-		errorhandler.ErrorHandler(c, &errorhandler.UnauthorizedError{
-			Message: err.Error(),
+	if !helpers.CheckPasswordHash(req.Password, user.PasswordHash) {
+		errorhandler.ErrorHandler(c, nil, &errorhandler.UnauthorizedError{
+			Message: "Email or password invalid",
 		})
 		return
 	}
 
-	result := models.LoginResponse{
-		AccessToken: access_token,
+	access_token, err := helpers.GenerateAccessToken(user)
+	if err != nil {
+		log.Printf("could not generate access_token %s", err.Error())
+		errorhandler.ErrorHandler(c, &err, &errorhandler.UnauthorizedError{
+			Message: "Something's error",
+		})
+		return
+	}
+
+	refresh_token, err := helpers.GenerateRefreshToken(user)
+	if err != nil {
+		log.Printf("could not generate access_token %s", err.Error())
+		errorhandler.ErrorHandler(c, &err, &errorhandler.UnauthorizedError{
+			Message: "Something's error",
+		})
+		return
+	}
+
+	user.AccessToken = access_token
+	user.RefreshToken = refresh_token
+
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		errorhandler.ErrorHandler(c, &err, &errorhandler.InternalServerError{
+			Message: "Something's error",
+		})
+		return
+	}
+
+	result := validation.LoginResponse{
+		AccessToken:  access_token,
+		RefreshToken: refresh_token,
 	}
 
 	res := helpers.Response(http.StatusOK, helpers.ResponseParams{
-		Message: "Successfully logged in",
+		Message: "Successfully login",
 		Data:    result,
 	})
 
